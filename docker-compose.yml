@@ -1,0 +1,77 @@
+version: '3.3'
+
+services:
+  app:
+    container_name: example-app
+    build:
+      context: ./php
+      dockerfile: ./Dockerfile
+    volumes:
+      - type: volume
+        source: php-fpm-socket
+        target: /var/run/php-fpm
+        volume:
+          nocopy: true
+      - type: bind
+        source: ./php/example-app
+        target: /var/www/html/example-app
+      - type: bind
+        source: ./php/zz-docker.conf
+        target: /usr/local/etc/php-fpm.d/zz-docker.conf
+      - type: bind
+        source: ./php/php.ini
+        target: /usr/local/etc/php/php.ini
+
+    environment:
+      - DB_HOST=db
+      - DB_DATABASE=
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=postgres
+    depends_on: ["db"]
+
+  web:
+    container_name: example-web
+    build:
+      context: ./nginx
+      dockerfile: ./Dockerfile
+    ports:
+      - target: 8080
+        published: 8000
+        protocol: tcp
+        mode: host
+    volumes:
+      - type: volume
+        source: php-fpm-socket
+        target: /var/run/php-fpm
+        volume:
+          nocopy: true
+      - type: bind
+        source: ./php/example-app
+        target: /var/www/html/example-app
+      - type: bind
+        source: ./nginx/default.conf
+        target: /etc/nginx/conf.d/default.conf
+    depends_on: ["app"]
+
+  db:
+    container_name: example-db
+    image: postgres:14.5
+    ports:
+      - target: 5432
+        published: 5432
+        protocol: tcp
+        mode: host
+    volumes:
+      - type: volume
+        source: db-store
+        target: /var/lib/postgresql/data
+        volume:
+          nocopy: true
+    environment:
+      - POSTGRES_DB=
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+
+volumes:
+  php-fpm-socket:
+  db-store:
